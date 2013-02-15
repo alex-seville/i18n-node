@@ -1,5 +1,9 @@
 # i18n
 
+
+**This is a fork of [https://github.com/mashpie/i18n-node](https://github.com/mashpie/i18n-node), designed to not auto-read/write files**
+
+
 Lightweight simple translation module with dynamic json storage. 
 Uses common __('...') syntax in app and templates.
 Stores language files in json files compatible to [webtranslateit](http://webtranslateit.com/) json format.

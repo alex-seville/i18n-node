@@ -19,6 +19,7 @@ var vsprintf = require('sprintf').vsprintf,
     debug = false,
     verbose = false,
     extension = '.js',
+    readFcn, writeFcn,
     directory = './locales';
 
 // public exports
@@ -49,6 +50,13 @@ i18n.configure = function (opt) {
   // write new locale information to disk
   if (typeof opt.updateFiles === 'boolean') {
     updateFiles = opt.updateFiles;
+  }
+
+  if (typeof opt.readFcn === "function") {
+    readFcn = opt.readFcn;
+  }
+  if (typeof opt.writeFcn === "function") {
+    writeFcn = opt.writeFcn;
   }
 
   // where to store json files
@@ -252,23 +260,28 @@ function translate(locale, singular, plural) {
 function read(locale) {
   var localeFile = {},
       file = locate(locale);
-  try {
-    if (verbose) {
-      console.log('read ' + file + ' for locale: ' + locale);
-    }
-    localeFile = fs.readFileSync(file);
+
+  if (readFcn) {
+    locales[locale] = readFcn(locale);
+  } else {
     try {
-      // parsing filecontents to locales[locale]
-      locales[locale] = JSON.parse(localeFile);
-    } catch (parseError) {
-      console.error('unable to parse locales from file (maybe ' + file + ' is empty or invalid json?): ', e);
-    }
-  } catch (readError) {
-    // unable to read, so intialize that file
-    // locales[locale] are already set in memory, so no extra read required
-    // or locales[locale] are empty, which initializes an empty locale.json file
-    if (verbose) {
-      console.log('initializing ' + file);
+      if (verbose) {
+        console.log('read ' + file + ' for locale: ' + locale);
+      }
+      localeFile = fs.readFileSync(file);
+      try {
+        // parsing filecontents to locales[locale]
+        locales[locale] = JSON.parse(localeFile);
+      } catch (parseError) {
+        console.error('unable to parse locales from file (maybe ' + file + ' is empty or invalid json?): ', e);
+      }
+    } catch (readError) {
+      // unable to read, so intialize that file
+      // locales[locale] are already set in memory, so no extra read required
+      // or locales[locale] are empty, which initializes an empty locale.json file
+      if (verbose) {
+        console.log('initializing ' + file);
+      }
     }
     write(locale);
   }
@@ -280,40 +293,43 @@ function write(locale) {
   var stats, target, tmp;
 
   // don't write new locale information to disk if updateFiles isn't true
-  if (!updateFiles) {
+  if (!updateFiles && !writeFcn) {
     return;
   }
 
-  // creating directory if necessary
-  try {
-    stats = fs.lstatSync(directory);
-  } catch (e) {
-    if (debug) {
-      console.log('creating locales dir in: ' + directory);
-    }
-    fs.mkdirSync(directory, parseInt('755', 8));
-  }
-
-  // first time init has an empty file
+ // first time init has an empty file
   if (!locales[locale]) {
     locales[locale] = {};
   }
 
-  // writing to tmp and rename on success
-  try {
-    target = locate(locale);
-    tmp = target + ".tmp";
-    fs.writeFileSync(tmp, JSON.stringify(locales[locale], null, "\t"), "utf8");
-    stats = fs.statSync(tmp);
-    if (stats.isFile()) {
-      fs.renameSync(tmp, target);
-    } else {
-      console.error('unable to write locales to file (either ' + tmp + ' or ' + target + ' are not writeable?): ', e);
+  if (writeFcn) {
+    writeFcn(locale, locales[locale]);
+  } else {
+    // creating directory if necessary
+    try {
+      stats = fs.lstatSync(directory);
+    } catch (e) {
+      if (debug) {
+        console.log('creating locales dir in: ' + directory);
+      }
+      fs.mkdirSync(directory, parseInt('755', 8));
     }
-  } catch (e) {
-    console.error('unexpected error writing files (either ' + tmp + ' or ' + target + ' are not writeable?): ', e);
-  }
 
+    // writing to tmp and rename on success
+    try {
+      target = locate(locale);
+      tmp = target + ".tmp";
+      fs.writeFileSync(tmp, JSON.stringify(locales[locale], null, "\t"), "utf8");
+      stats = fs.statSync(tmp);
+      if (stats.isFile()) {
+        fs.renameSync(tmp, target);
+      } else {
+        console.error('unable to write locales to file (either ' + tmp + ' or ' + target + ' are not writeable?): ', e);
+      }
+    } catch (e) {
+      console.error('unexpected error writing files (either ' + tmp + ' or ' + target + ' are not writeable?): ', e);
+    }
+  }
 }
 
 // basic normalization of filepath
