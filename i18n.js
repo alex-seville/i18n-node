@@ -101,7 +101,7 @@ i18n.__ = function (phrase) {
   return msg;
 };
 
-i18n.__n = function (singular, plural, count) {
+i18n.__n = function (phrase,count) {
   var locale, msg;
 
   // get locale from scope (deprecated) or object
@@ -111,6 +111,19 @@ i18n.__n = function (singular, plural, count) {
   if (this && this.locale) {
     locale = this.locale;
   }
+
+  var singular, plural;
+  var params = phrase.split("|");
+  for (var i = 0; i < params.length; i++) {
+    var currParam = params[i];
+    var num = currParam.slice(1, currParam.indexOf("]"));
+    if (num == "1") {
+      singular = currParam.slice(currParam.indexOf("]"));
+    } else if (num != "0") {
+      plural = currParam.slice(currParam.indexOf("]"));
+    }
+  }
+
 
   // get translation
   msg = translate(locale, singular, plural);
