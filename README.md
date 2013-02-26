@@ -1,7 +1,9 @@
 # i18n
 
 
-**This is a fork of [https://github.com/mashpie/i18n-node](https://github.com/mashpie/i18n-node), designed to not auto-read/write files**
+**This is a fork of [https://github.com/mashpie/i18n-node](https://github.com/mashpie/i18n-node), designed to not auto-read/write files.**
+**It should not be used without carefully studying the changes.  This fork changes the read/writing of files, the handling of spintf strings, and changes to pluralization.**
+**USE AT YOUR OWN RISK**
 
 
 Lightweight simple translation module with dynamic json storage. 
