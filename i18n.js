@@ -94,6 +94,11 @@ i18n.__ = function (phrase) {
   if (this && this.locale) {
     locale = this.locale;
   }
+  var re = /(\%\w)\%/g;
+
+  phrase = phrase.replace(re,"$1");
+  re = /(\%\d)/g;
+  phrase = phrase.replace(re,"$1$$s");
   msg = translate(locale, phrase);
   if (arguments.length > 1) {
     msg = vsprintf(msg, Array.prototype.slice.call(arguments, 1));
@@ -112,29 +117,38 @@ i18n.__n = function (phrase,count) {
     locale = this.locale;
   }
 
-  var singular, plural;
+  var re = /(\%\w)\%/g;
+
+  phrase = phrase.replace(re, "$1");
+  re = /(\%\d)/g;
+  phrase = phrase.replace(re, "$1$$s");
+
+  var singular, plural, none;
   var params = phrase.split("|");
   for (var i = 0; i < params.length; i++) {
     var currParam = params[i];
     var num = currParam.slice(1, currParam.indexOf("]"));
-    if (num == "1") {
-      singular = currParam.slice(currParam.indexOf("]"));
-    } else if (num != "0") {
-      plural = currParam.slice(currParam.indexOf("]"));
+    if (num === "1") {
+      singular = currParam.slice(currParam.indexOf("]") + 1);
+    } else if (num !== "0") {
+      plural = currParam.slice(currParam.indexOf("]") + 1);
+    } else {
+      none = currParam.slice(currParam.indexOf("]") + 1);
     }
   }
-
-
+ 
   // get translation
-  msg = translate(locale, singular, plural);
+  msg = translate(locale, singular, plural, none);
 
   // parse translation and replace all digets '%d' by `count`
   // this also replaces extra strings '%%s' to parseble '%s' for next step
   // simplest 2 form implementation of plural, like https://developer.mozilla.org/en/docs/Localization_and_Plurals#Plural_rule_.231_.282_forms.29
   if (parseInt(count, 10) > 1) {
     msg = vsprintf(msg.other, [count]);
-  } else {
+  } else if (parseInt(count, 10)  === 1)  {
     msg = vsprintf(msg.one, [count]);
+  } else {
+    msg = msg.none;
   }
 
   // if we have extra arguments with strings to get replaced,
@@ -239,7 +253,7 @@ function guessLanguage(request) {
 
 // read locale file, translate a msg and write to fs if new
 
-function translate(locale, singular, plural) {
+function translate(locale, singular, plural, none) {
   if (locale === undefined) {
     if (debug) {
       console.warn("WARN: No locale found - check the context of the call to $__. Using " + defaultLocale + " (set by request) as current locale");
@@ -255,7 +269,8 @@ function translate(locale, singular, plural) {
     if (!locales[locale][singular]) {
       locales[locale][singular] = {
         'one': singular,
-        'other': plural
+        'other': plural,
+        'none': none
       };
       write(locale);
     }
