@@ -117,6 +117,7 @@ i18n.__n = function (phrase,count) {
     locale = this.locale;
   }
 
+  phrase = translate(locale, phrase);
   var re = /(\%\w)\%/g;
 
   phrase = phrase.replace(re, "$1");
@@ -136,9 +137,13 @@ i18n.__n = function (phrase,count) {
       none = currParam.slice(currParam.indexOf("]") + 1);
     }
   }
- 
+
   // get translation
-  msg = translate(locale, singular, plural, none);
+  msg = {
+    other: plural,
+    one: singular,
+    none: none
+  };
 
   // parse translation and replace all digets '%d' by `count`
   // this also replaces extra strings '%%s' to parseble '%s' for next step
