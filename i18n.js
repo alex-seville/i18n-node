@@ -9,6 +9,7 @@
 
 // dependencies
 var vsprintf = require('sprintf').vsprintf,
+    sprintf = require('sprintf').sprintf,
     fs = require('fs'),
     url = require('url'),
     path = require('path'),
@@ -86,6 +87,18 @@ i18n.init = function i18nInit(request, response, next) {
   }
 };
 
+function parseArguments(arr) {
+  var a = Array.prototype.slice.call(arr);
+ 
+  return a.filter(function (el) {
+    if (typeof el === 'string') {
+      return true;
+    }
+  }).map(function (el) {
+      return (el.indexOf('{') === 0 ? JSON.parse(el): el);
+    });
+}
+
 i18n.__ = function (phrase) {
   var locale, msg;
   if (this && this.scope) {
@@ -94,19 +107,36 @@ i18n.__ = function (phrase) {
   if (this && this.locale) {
     locale = this.locale;
   }
-  var re = /(\%\w)\%/g;
+  phrase = translate(locale, phrase);
 
-  phrase = phrase.replace(re,"$1");
-  re = /(\%\d)/g;
-  phrase = phrase.replace(re,"$1$$s");
-  msg = translate(locale, phrase);
-  if (arguments.length > 1) {
-    msg = vsprintf(msg, Array.prototype.slice.call(arguments, 1));
+  var regexp = /(\%\%\w+\%\%)/g;
+  var submatches = phrase.match(regexp);
+  if (submatches) {
+    for (var i = 0; i < submatches.length; i++) {
+      var sm = submatches[i];
+      phrase = phrase.replace(sm, i18n.__(sm.slice(2, -2)));
+    }
   }
-  return msg;
+
+  var re = /\%([a-zA-Z]+)\%/g;
+
+  phrase = phrase.replace(re, "%($1)s");
+  re = /(\%\d)/g;
+  phrase = phrase.replace(re, "$1$$s");
+  //msg = translate(locale, phrase);
+
+  var args = parseArguments(arguments).slice(1);
+ 
+ 
+  if (args.length > 0) {
+    phrase = vsprintf.call(null, phrase, args);
+  } 
+ 
+
+  return phrase;
 };
 
-i18n.__n = function (phrase,count) {
+i18n.__n = function (phrase, count) {
   var locale, msg;
 
   // get locale from scope (deprecated) or object
@@ -118,11 +148,33 @@ i18n.__n = function (phrase,count) {
   }
 
   phrase = translate(locale, phrase);
-  var re = /(\%\w)\%/g;
+ 
 
-  phrase = phrase.replace(re, "$1");
-  re = /(\%\d)/g;
-  phrase = phrase.replace(re, "$1$$s");
+  var regexp = /(\%\%\w+\%\%)/g;
+  var submatches = phrase.match(regexp);
+  if (submatches) {
+    for (var j = 0; j < submatches.length; j++) {
+      var sm = submatches[j];
+     
+      var newVal =  i18n.__(sm.slice(2, -2));
+     
+      phrase = phrase.replace(sm, newVal);
+    }
+  }
+
+
+  var re = /\%([a-zA-Z]+)\%/g;
+
+  phrase = phrase.replace(re, "%($1)s");
+  re = /(\%[0-9]+\%)/g;
+  //phrase = phrase.replace(re, "%$1$$s");
+  var digitmatches = phrase.match(re);
+  if (digitmatches) {
+    for (var k = 0; k < digitmatches.length; k++) {
+      var sm = digitmatches[k];
+      phrase = phrase.replace(sm,"%"+(k+1)+"$s");
+    }
+  }
 
   var singular, plural, none;
   var params = phrase.split("|");
@@ -137,7 +189,6 @@ i18n.__n = function (phrase,count) {
       none = currParam.slice(currParam.indexOf("]") + 1);
     }
   }
-
   // get translation
   msg = {
     other: plural,
@@ -149,17 +200,16 @@ i18n.__n = function (phrase,count) {
   // this also replaces extra strings '%%s' to parseble '%s' for next step
   // simplest 2 form implementation of plural, like https://developer.mozilla.org/en/docs/Localization_and_Plurals#Plural_rule_.231_.282_forms.29
   if (parseInt(count, 10) > 1) {
-    msg = vsprintf(msg.other, [count]);
+    msg = vsprintf(msg.other, [parseInt(count, 10) ]);
   } else if (parseInt(count, 10)  === 1)  {
-    msg = vsprintf(msg.one, [count]);
+    msg = vsprintf(msg.one, [1]);
   } else {
     msg = msg.none;
   }
-
   // if we have extra arguments with strings to get replaced,
   // an additional substition injects those strings afterwards
   if (arguments.length > 3) {
-    msg = vsprintf(msg, Array.prototype.slice.call(arguments, 3));
+    msg = vsprintf(msg, Array.prototype.slice.call(parseArguments(arguments), 3));
   }
 
   return msg;
