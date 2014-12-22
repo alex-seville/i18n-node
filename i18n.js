@@ -95,8 +95,13 @@ function parseArguments(arr) {
       return true;
     }
   }).map(function (el) {
-      return (el.indexOf('{') === 0 ? JSON.parse(el): el);
-    });
+    try {
+      return JSON.parse(el);
+    } catch (e) {
+      // JS error is raised that means string is not JSON
+      return el;
+    }
+  });
 }
 
 i18n.__ = function (phrase) {
